@@ -1,0 +1,88 @@
+:root {
+  color-scheme: light dark;
+  --fg: #1a1a1a;
+  --bg: #ffffff;
+  --muted: #666;
+  --accent: #2563eb;
+  --grid: #ddd;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #eaeaea;
+    --bg: #14161a;
+    --muted: #999;
+    --grid: #333;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 1rem;
+  font-family: system-ui, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.hint {
+  color: var(--muted);
+  max-width: 60ch;
+  font-size: 0.9rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--grid);
+  background: transparent;
+  color: var(--fg);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.tab-button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+canvas {
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  max-width: 100%;
+}
+
+#canvas-3d-container {
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+}
+
+#status {
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}

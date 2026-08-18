@@ -1,0 +1,30 @@
+{
+  "name": "signalk-hwt3100-calibration",
+  "version": "0.1.0",
+  "description": "2D/3D magnetic field visualization for verifying compass calibration quality on a SignalK server",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "lib",
+    "public"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "signalk-node-server-plugin",
+    "signalk-category-utility",
+    "compass",
+    "calibration",
+    "magnetometer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BoatHacks/signalk-hwt3100-calibration.git"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

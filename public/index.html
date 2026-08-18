@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>HWT3100 Calibration Visualizer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>HWT3100 Calibration Visualizer</h1>
+    <p class="hint">
+      Rotate the compass module through a few full turns (see the firmware's
+      Start Calibration button) and watch the trace below. A well-calibrated
+      sensor traces a circle/sphere centered on the origin; an offset
+      ellipse/ellipsoid means hard/soft-iron calibration is needed.
+    </p>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab-button active" data-tab="tab-2d">2D (X / Y)</button>
+    <button class="tab-button" data-tab="tab-3d">3D</button>
+  </nav>
+
+  <main>
+    <section id="tab-2d" class="tab-panel active">
+      <canvas id="canvas-2d" width="600" height="600"></canvas>
+    </section>
+    <section id="tab-3d" class="tab-panel">
+      <div id="canvas-3d-container"></div>
+    </section>
+  </main>
+
+  <footer id="status">connecting&hellip;</footer>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
