@@ -1,13 +1,19 @@
-// Kickoff-quality visualization: polls this plugin's own /points
-// endpoint (populated server-side from sensors.hwt3100.magneticField.x/y/z,
-// see index.js) and renders it two ways. Not yet using SignalK's
-// WebSocket delta stream directly -- polling was simpler to stand up
-// first; switching to a live subscription is a natural follow-up.
+// Renders live from SignalK's own WebSocket delta stream
+// (/signalk/v1/stream) rather than polling this plugin's backend --
+// the page fetches /config once to learn which path prefix to
+// subscribe to (admin-configurable, see index.js's schema), seeds
+// itself with whatever this plugin's server-side buffer already has
+// via one GET /points call, then subscribes directly for everything
+// after that.
+//
+// Best-fit circle/ellipse (2D) and sphere/ellipsoid (3D) overlays are
+// intentionally not implemented yet -- see README "Known limitations
+// / next steps".
 
 import * as THREE from 'three';
 
-const POLL_INTERVAL_MS = 250;
 const statusEl = document.getElementById('status');
+const RECONNECT_DELAY_MS = [1000, 2000, 5000, 5000, 5000];
 
 // --- Tabs ---
 
@@ -117,31 +123,145 @@ function resizeRendererToDisplaySize() {
   }
 }
 
-function animate() {
-  requestAnimationFrame(animate);
+// --- Render loop ---
+//
+// Runs continuously regardless of how points arrive (WS pushes update
+// `points` in place; this loop just redraws from whatever's currently
+// buffered) -- decouples "how often data arrives" from "how often we
+// redraw," and gives the 3D view its auto-rotate animation for free.
+
+let points = [];
+let maxPoints = 2000;
+
+// Live-configurable from the page itself (independent of index.js's
+// `maxPoints` schema option, which only bounds the server-side seed
+// buffer) -- lets you shrink the window to just the last few seconds
+// while actively rotating, or grow it to review a whole pass, without
+// touching the plugin config or reloading the page.
+const maxPointsInput = document.getElementById('max-points');
+const maxPointsValueEl = document.getElementById('max-points-value');
+
+function setMaxPoints(value) {
+  maxPoints = Math.max(1, Math.round(value));
+  maxPointsInput.value = String(maxPoints);
+  maxPointsValueEl.textContent = String(maxPoints);
+  if (points.length > maxPoints) points = points.slice(points.length - maxPoints);
+}
+
+maxPointsInput.addEventListener('input', () => setMaxPoints(maxPointsInput.valueAsNumber));
+
+function renderFrame() {
+  requestAnimationFrame(renderFrame);
   resizeRendererToDisplaySize();
-  // Slow auto-rotate for now -- TODO: replace with drag-to-orbit
-  // (three/examples/jsm/controls/OrbitControls.js) once this is more
-  // than a kickoff.
+  draw2d(points);
+  draw3d(points);
+  // TODO: replace with drag-to-orbit (three/examples/jsm/controls/OrbitControls.js)
+  // once this is more than a kickoff.
   pointsGroup.rotation.y += 0.003;
   renderer.render(scene, camera);
 }
-requestAnimationFrame(animate);
+requestAnimationFrame(renderFrame);
 
-// --- Data polling ---
+// --- Live data via SignalK's WebSocket delta stream ---
 
-async function poll() {
-  try {
-    const res = await fetch('./points');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const points = await res.json();
-    draw2d(points);
-    draw3d(points);
-    statusEl.textContent = `${points.length} point(s) buffered`;
-  } catch (err) {
-    statusEl.textContent = `Error fetching points: ${err.message}`;
-  } finally {
-    setTimeout(poll, POLL_INTERVAL_MS);
-  }
+function pushSample(sample) {
+  points.push(sample);
+  if (points.length > maxPoints) points.shift();
 }
-poll();
+
+/** Merges independently-arriving x/y/z delta updates into one sample per change, once all three axes are known at least once. */
+function makeAxisMerger() {
+  const latest = { x: undefined, y: undefined, z: undefined };
+  return function update(axis, value, t) {
+    latest[axis] = value;
+    const { x, y, z } = latest;
+    if (x === undefined || y === undefined || z === undefined) return null;
+    return { x, y, z, t };
+  };
+}
+
+async function connect() {
+  let magneticFieldPath = 'sensors.hwt3100.magneticField';
+  try {
+    const configRes = await fetch('./config');
+    if (configRes.ok) {
+      const config = await configRes.json();
+      magneticFieldPath = config.magneticFieldPath || magneticFieldPath;
+      if (config.maxPoints) setMaxPoints(config.maxPoints);
+    }
+  } catch {
+    // Fall back to the default path above -- the WebSocket
+    // subscription below still needs *a* path, and it matches
+    // index.js's schema default, so this is a reasonable guess if
+    // /config is briefly unreachable. The trace-length slider keeps
+    // its own default in that case too.
+  }
+
+  try {
+    const pointsRes = await fetch('./points');
+    if (pointsRes.ok) {
+      points = await pointsRes.json();
+      if (points.length > maxPoints) points = points.slice(points.length - maxPoints);
+    }
+  } catch {
+    // Non-fatal -- just starts with an empty trace instead of
+    // whatever this plugin's server-side buffer already had.
+  }
+
+  const axisPaths = {
+    [`${magneticFieldPath}.x`]: 'x',
+    [`${magneticFieldPath}.y`]: 'y',
+    [`${magneticFieldPath}.z`]: 'z',
+  };
+  const mergeAxis = makeAxisMerger();
+
+  let reconnectAttempt = 0;
+
+  function open() {
+    const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${wsProtocol}//${location.host}/signalk/v1/stream?subscribe=none`);
+
+    ws.addEventListener('open', () => {
+      reconnectAttempt = 0;
+      ws.send(
+        JSON.stringify({
+          context: 'vessels.self',
+          subscribe: Object.keys(axisPaths).map((path) => ({ path, period: 100 })),
+        }),
+      );
+      statusEl.textContent = `live (${points.length} point(s) buffered)`;
+    });
+
+    ws.addEventListener('message', (event) => {
+      let delta;
+      try {
+        delta = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+      for (const update of delta.updates || []) {
+        for (const { path, value } of update.values || []) {
+          const axis = axisPaths[path];
+          if (!axis || typeof value !== 'number' || Number.isNaN(value)) continue;
+          const sample = mergeAxis(axis, value, Date.now());
+          if (sample) pushSample(sample);
+        }
+      }
+      statusEl.textContent = `live (${points.length} point(s) buffered)`;
+    });
+
+    ws.addEventListener('close', scheduleReconnect);
+    ws.addEventListener('error', () => ws.close());
+  }
+
+  function scheduleReconnect() {
+    const delay = RECONNECT_DELAY_MS[Math.min(reconnectAttempt, RECONNECT_DELAY_MS.length - 1)];
+    reconnectAttempt += 1;
+    statusEl.textContent = `disconnected, retrying in ${delay / 1000}s…`;
+    setTimeout(open, delay);
+  }
+
+  open();
+}
+
+connect();

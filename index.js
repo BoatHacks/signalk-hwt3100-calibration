@@ -18,6 +18,7 @@ module.exports = function (app) {
 
   let unsubscribes = [];
   let traceBuffer = null;
+  let currentConfig = { magneticFieldPath: DEFAULT_MAGNETIC_FIELD_PATH, maxPoints: DEFAULT_MAX_POINTS };
 
   plugin.schema = {
     type: 'object',
@@ -42,6 +43,7 @@ module.exports = function (app) {
   plugin.start = function (options) {
     const magneticFieldPath = options.magneticFieldPath || DEFAULT_MAGNETIC_FIELD_PATH;
     const maxPoints = options.maxPoints || DEFAULT_MAX_POINTS;
+    currentConfig = { magneticFieldPath, maxPoints };
 
     traceBuffer = new TraceBuffer(maxPoints);
     const merger = new AxisMerger();
@@ -75,6 +77,17 @@ module.exports = function (app) {
   // instruments subscribe to, so there's no anonymous-read requirement
   // the way there would be for a resource provider.
   plugin.registerWithRouter = function (router) {
+    // The configured path prefix, so the browser knows what to
+    // subscribe to over SignalK's own WebSocket delta stream --
+    // app.js connects to /signalk/v1/stream directly for live updates
+    // rather than us relaying it (see README "How it works").
+    router.get('/config', (req, res) => {
+      res.json(currentConfig);
+    });
+    // One-shot snapshot of whatever this server-side buffer already
+    // has (e.g. from before the page was opened), so the page has
+    // something to show immediately instead of starting from a blank
+    // trace and waiting for new WebSocket updates to trickle in.
     router.get('/points', (req, res) => {
       res.json(traceBuffer ? traceBuffer.toArray() : []);
     });

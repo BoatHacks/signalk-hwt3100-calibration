@@ -22,6 +22,13 @@
     <button class="tab-button" data-tab="tab-3d">3D</button>
   </nav>
 
+  <div class="controls">
+    <label for="max-points">
+      Trace length: <output id="max-points-value">2000</output> points
+    </label>
+    <input type="range" id="max-points" min="50" max="10000" step="50" value="2000" />
+  </div>
+
   <main>
     <section id="tab-2d" class="tab-panel active">
       <canvas id="canvas-2d" width="600" height="600"></canvas>
