@@ -17,6 +17,17 @@
     </p>
   </header>
 
+  <section class="calibration">
+    <h2>HALSER Calibration Controls</h2>
+    <div class="calibration-buttons">
+      <button id="cal-start" class="cal-button" data-action="start" disabled>Start Calibration</button>
+      <button id="cal-stop" class="cal-button" data-action="stop" disabled>Stop Calibration</button>
+      <button id="cal-clear" class="cal-button" data-action="clear" disabled>Clear Calibration</button>
+    </div>
+    <p id="calibration-result" class="hint"></p>
+    <p id="firmware-status" class="hint">Checking HALSER firmware connection&hellip;</p>
+  </section>
+
   <nav class="tabs">
     <button class="tab-button active" data-tab="tab-2d">2D (X / Y)</button>
     <button class="tab-button" data-tab="tab-3d">3D</button>

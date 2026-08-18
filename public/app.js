@@ -314,3 +314,77 @@ async function connect() {
 }
 
 connect();
+
+// --- HALSER firmware calibration controls ---
+//
+// These call this plugin's own /calibration/<action> and
+// /firmware-status endpoints (index.js), which proxy to the
+// HALSER-HWT3100-interface firmware's own HTTP server -- the browser
+// can't call the firmware directly (see index.js's registerWithRouter
+// for why: no CORS headers, and its own same-origin check would
+// reject it anyway).
+
+const FIRMWARE_STATUS_POLL_MS = 5000;
+
+const calButtons = {
+  start: document.getElementById('cal-start'),
+  stop: document.getElementById('cal-stop'),
+  clear: document.getElementById('cal-clear'),
+};
+const calibrationResultEl = document.getElementById('calibration-result');
+const firmwareStatusEl = document.getElementById('firmware-status');
+
+let firmwareConfigured = false;
+let firmwareReachable = false;
+
+function setCalButtonsEnabled(enabled) {
+  for (const button of Object.values(calButtons)) button.disabled = !enabled;
+}
+
+async function checkFirmwareStatus() {
+  try {
+    const res = await fetch('./firmware-status');
+    const data = await res.json();
+    firmwareConfigured = Boolean(data.configured);
+    firmwareReachable = Boolean(data.reachable);
+
+    if (!firmwareConfigured) {
+      firmwareStatusEl.textContent =
+        "HALSER firmware URL not configured — set it in this plugin's settings to enable calibration controls.";
+    } else if (!firmwareReachable) {
+      firmwareStatusEl.textContent =
+        'HALSER firmware is unreachable — check its power and network connection.';
+    } else {
+      firmwareStatusEl.textContent = 'HALSER firmware connected.';
+    }
+  } catch (err) {
+    firmwareConfigured = false;
+    firmwareReachable = false;
+    firmwareStatusEl.textContent = `Could not check HALSER firmware status: ${err.message}`;
+  } finally {
+    setCalButtonsEnabled(firmwareConfigured && firmwareReachable);
+    setTimeout(checkFirmwareStatus, FIRMWARE_STATUS_POLL_MS);
+  }
+}
+checkFirmwareStatus();
+
+for (const [action, button] of Object.entries(calButtons)) {
+  button.addEventListener('click', async () => {
+    setCalButtonsEnabled(false);
+    calibrationResultEl.textContent = `${button.textContent}: sending…`;
+    try {
+      const res = await fetch(`./calibration/${action}`, { method: 'POST' });
+      const data = await res.json();
+      calibrationResultEl.textContent = data.ok
+        ? `${button.textContent}: ${data.body}`
+        : `${button.textContent} failed: ${data.error || data.body || res.statusText}`;
+    } catch (err) {
+      calibrationResultEl.textContent = `${button.textContent} failed: ${err.message}`;
+    } finally {
+      // Re-enable based on the last-known firmware reachability
+      // rather than unconditionally -- this click's outcome doesn't
+      // tell us whether the firmware is still reachable right now.
+      setCalButtonsEnabled(firmwareConfigured && firmwareReachable);
+    }
+  });
+}

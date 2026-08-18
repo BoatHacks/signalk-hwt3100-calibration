@@ -39,6 +39,46 @@ header h1 {
   font-size: 0.9rem;
 }
 
+.calibration {
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.calibration h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.calibration-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cal-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.cal-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--grid);
+  color: var(--muted);
+}
+
+#calibration-result,
+#firmware-status {
+  margin: 0.5rem 0 0;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;

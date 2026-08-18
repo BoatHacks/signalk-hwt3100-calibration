@@ -68,6 +68,18 @@ compass calibration by eye.
     roughly the soft-iron scale error.
 - If the WebSocket drops, the page retries with a short backoff and
   shows connection status in the footer.
+- If `firmwareUrl` (see Configuration below) is set, the page also
+  shows **Start / Stop / Clear Calibration** buttons that call the
+  HALSER firmware's own calibration buttons over HTTP and display
+  whatever it returns. These go through this plugin's backend
+  (`POST /calibration/<action>`, proxying to the firmware's
+  `POST /api/buttons/<name>`) rather than the browser calling the
+  firmware directly — the firmware's web server sends no CORS headers
+  and does its own same-origin check on POSTs, so a cross-origin
+  `fetch()` from this page would fail regardless. The page polls
+  `GET /firmware-status` every 5s; the buttons are dimmed and
+  disabled, with an explanatory message, whenever `firmwareUrl` isn't
+  configured or the firmware isn't currently reachable.
 
 Note: `/plugins/<id>/*` routes require an admin-authenticated session
 on the SignalK server. That's intentional here — calibration is an
@@ -83,6 +95,7 @@ Set from the SignalK admin UI's plugin config page:
 |---|---|---|
 | `magneticFieldPath` | `sensors.hwt3100.magneticField` | Path prefix; the plugin subscribes to `<prefix>.x`, `.y`, `.z`. |
 | `maxPoints` | `2000` | How many recent readings to keep buffered. A full rotation typically only needs a few hundred. |
+| `firmwareUrl` | *(blank)* | Base URL of the HALSER-HWT3100-interface firmware's own web server (**not** the SignalK server) — e.g. `http://halser-hwt3100.local` or `http://192.168.1.50`. Leave blank to hide the calibration buttons. |
 
 ## Known limitations / next steps
 
@@ -95,6 +108,15 @@ Set from the SignalK admin UI's plugin config page:
   the raw point cloud.
 - No calibration-offset computation/export — this plugin only
   visualizes; it doesn't (yet) compute or apply a correction.
+- The calibration buttons display the firmware's raw HTTP response
+  (its `UIButton` click acknowledgment, e.g. `{"status":"ok"}`), not
+  the HWT3100 module's actual calibration reply text ("Calibrating",
+  "Calibration completed", etc.) — the firmware's own `UIButton`
+  contract is fire-and-forget with no return value, so that reply only
+  ever reaches the firmware's *own* Status page
+  (`HALSER-HWT3100-interface`'s `docs/plans/calibration-control-tab.md`
+  covers why). Pulling that into this plugin too is a reasonable
+  follow-up, not yet done.
 - Not yet tested against a real SignalK server or real hardware.
 
 ## Development
