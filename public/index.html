@@ -33,10 +33,13 @@
 
   <footer id="status">connecting&hellip;</footer>
 
+  <!-- Vendored locally (public/vendor/three/), not loaded from a CDN --
+       this page needs to keep working with no internet access, e.g.
+       offshore with the SignalK server as the only thing on the LAN. -->
   <script type="importmap">
     {
       "imports": {
-        "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+        "three": "vendor/three/three.module.min.js"
       }
     }
   </script>

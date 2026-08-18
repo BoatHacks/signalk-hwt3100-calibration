@@ -40,8 +40,11 @@ compass calibration by eye.
   (`/points`) and renders:
   - a 2D canvas trace (X vs Y, with a fading trail and the most recent
     point highlighted), and
-  - a 3D point cloud (via [three.js](https://threejs.org/), loaded
-    from a CDN), auto-rotating.
+  - a 3D point cloud (via [three.js](https://threejs.org/), vendored
+    locally under `public/vendor/three/` rather than loaded from a
+    CDN — this needs to keep working with no internet access, e.g.
+    offshore with the SignalK server as the only thing on the LAN),
+    auto-rotating.
 
 Note: `/plugins/<id>/*` routes require an admin-authenticated session
 on the SignalK server. That's intentional here — calibration is an
@@ -64,10 +67,6 @@ Set from the SignalK admin UI's plugin config page:
   to SignalK's own WebSocket delta stream directly — simpler to stand
   up first, but a live subscription would be more efficient and lower
   latency.
-- three.js is loaded from a CDN (`unpkg.com`) rather than vendored
-  into the package, so the 3D view needs the browser to have internet
-  access. Fine for a laptop ashore; not fine standalone on a boat with
-  no shore WiFi. Vendoring it locally is a natural follow-up.
 - No best-fit circle/ellipse (2D) or sphere/ellipsoid (3D) overlay yet
   — right now it's just the raw trace, and judging "is this circular"
   is still up to the viewer's eye.
