@@ -6,16 +6,20 @@
 // via one GET /points call, then subscribes directly for everything
 // after that.
 //
-// Best-fit circle/ellipse (2D) and sphere/ellipsoid (3D) overlays are
-// intentionally not implemented yet -- see README "Known limitations
-// / next steps".
+// 2D gets a reference circle and a best-fit circle overlay (both
+// toggleable, see below); a 3D sphere/ellipsoid equivalent is still
+// intentionally deferred -- see README "Known limitations / next
+// steps".
 
 import * as THREE from 'three';
+import { fitCircle } from './circle-fit.js';
 
 const statusEl = document.getElementById('status');
 const RECONNECT_DELAY_MS = [1000, 2000, 5000, 5000, 5000];
 
 // --- Tabs ---
+
+const circleOverlayControls = document.getElementById('circle-overlay-controls');
 
 for (const button of document.querySelectorAll('.tab-button')) {
   button.addEventListener('click', () => {
@@ -23,6 +27,8 @@ for (const button of document.querySelectorAll('.tab-button')) {
     for (const p of document.querySelectorAll('.tab-panel')) p.classList.remove('active');
     button.classList.add('active');
     document.getElementById(button.dataset.tab).classList.add('active');
+    // The circle overlays are 2D-only -- hide their controls on the 3D tab.
+    circleOverlayControls.style.display = button.dataset.tab === 'tab-2d' ? '' : 'none';
   });
 }
 
@@ -30,6 +36,8 @@ for (const button of document.querySelectorAll('.tab-button')) {
 
 const canvas2d = document.getElementById('canvas-2d');
 const ctx2d = canvas2d.getContext('2d');
+const showReferenceCircleCheckbox = document.getElementById('show-reference-circle');
+const showBestFitCircleCheckbox = document.getElementById('show-best-fit-circle');
 
 function draw2d(points) {
   const w = canvas2d.width;
@@ -65,6 +73,47 @@ function draw2d(points) {
     ctx2d.moveTo(toScreen(points[i - 1].x, w), toScreen(-points[i - 1].y, h));
     ctx2d.lineTo(toScreen(points[i].x, w), toScreen(-points[i].y, h));
     ctx2d.stroke();
+  }
+
+  // Radii/distances in data units scale uniformly to screen units,
+  // same factor for both axes (the canvas is square and toScreen()
+  // above already uses one shared `extent` for both x and y).
+  const toScreenRadius = (r) => (r / extent) * (w / 2);
+
+  // Reference circle: centered on the origin, radius = the mean
+  // distance of the buffered points from the origin. If calibration
+  // were perfect (no hard-iron offset, no soft-iron distortion), the
+  // trace should sit right on this circle -- so comparing it against
+  // the best-fit circle below (which can be off-center) is a quick
+  // visual read on calibration quality.
+  if (showReferenceCircleCheckbox.checked) {
+    const meanRadius =
+      points.reduce((sum, p) => sum + Math.hypot(p.x, p.y), 0) / points.length;
+    ctx2d.strokeStyle = 'rgba(22, 163, 74, 0.6)';
+    ctx2d.lineWidth = 1;
+    ctx2d.setLineDash([]);
+    ctx2d.beginPath();
+    ctx2d.arc(toScreen(0, w), toScreen(0, h), toScreenRadius(meanRadius), 0, 2 * Math.PI);
+    ctx2d.stroke();
+  }
+
+  // Best-fit circle: the actual least-squares circle through the
+  // buffered points (circle-fit.js) -- its center
+  // offset from the origin is roughly the hard-iron offset; its
+  // radius vs. the reference circle's is roughly the soft-iron scale
+  // error. Dotted specifically so it reads as "fitted to the data,"
+  // distinct from the reference circle's solid line.
+  if (showBestFitCircleCheckbox.checked) {
+    const fit = fitCircle(points);
+    if (fit) {
+      ctx2d.strokeStyle = 'rgba(234, 88, 12, 0.85)';
+      ctx2d.lineWidth = 1.5;
+      ctx2d.setLineDash([4, 4]);
+      ctx2d.beginPath();
+      ctx2d.arc(toScreen(fit.cx, w), toScreen(-fit.cy, h), toScreenRadius(fit.r), 0, 2 * Math.PI);
+      ctx2d.stroke();
+      ctx2d.setLineDash([]);
+    }
   }
 
   // Most recent reading, highlighted.

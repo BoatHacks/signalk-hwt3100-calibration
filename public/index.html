@@ -29,6 +29,17 @@
     <input type="range" id="max-points" min="50" max="10000" step="50" value="2000" />
   </div>
 
+  <div class="controls" id="circle-overlay-controls">
+    <label>
+      <input type="checkbox" id="show-reference-circle" checked />
+      Reference circle
+    </label>
+    <label>
+      <input type="checkbox" id="show-best-fit-circle" checked />
+      Best-fit circle (dotted)
+    </label>
+  </div>
+
   <main>
     <section id="tab-2d" class="tab-panel active">
       <canvas id="canvas-2d" width="600" height="600"></canvas>

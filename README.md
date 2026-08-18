@@ -57,6 +57,15 @@ compass calibration by eye.
     which only bounds the server-side seed buffer) — shrink it while
     actively rotating to watch just the last few seconds, or grow it
     to review a whole pass, with no reload needed.
+  - Two checkboxes on the 2D tab toggle overlay circles: a solid
+    **reference circle**, centered on the origin with radius equal to
+    the mean distance of the buffered points from the origin (where a
+    perfectly calibrated trace should sit), and a dotted **best-fit
+    circle** (`public/circle-fit.js`, a Kasa least-squares circle fit
+    through the actual points). Comparing the two is a quick visual
+    read: the best-fit circle's offset from the origin is roughly the
+    hard-iron offset, and its radius vs. the reference circle's is
+    roughly the soft-iron scale error.
 - If the WebSocket drops, the page retries with a short backoff and
   shows connection status in the footer.
 
@@ -77,9 +86,13 @@ Set from the SignalK admin UI's plugin config page:
 
 ## Known limitations / next steps
 
-- No best-fit circle/ellipse (2D) or sphere/ellipsoid (3D) overlay yet
-  — right now it's just the raw trace, and judging "is this circular"
-  is still up to the viewer's eye.
+- The 2D best-fit circle is a simple algebraic (Kasa) fit, not a true
+  ellipse fit — it can't distinguish "circular but offset" (hard-iron
+  only) from "elliptical" (soft-iron present) the way an ellipse fit
+  or full 3-axis calibration solve could. Good enough to eyeball, not
+  a real calibration computation.
+- No 3D sphere/ellipsoid fit overlay yet — the 3D tab is still just
+  the raw point cloud.
 - No calibration-offset computation/export — this plugin only
   visualizes; it doesn't (yet) compute or apply a correction.
 - Not yet tested against a real SignalK server or real hardware.
@@ -91,10 +104,15 @@ npm install
 npm test
 ```
 
-Pure logic (buffering, per-axis merge, the static-file guard) lives in
-`lib/` and is unit tested directly with `node:test`; `index.js` is the
-thin layer that wires that logic to the SignalK plugin lifecycle
-(`app.streambundle`, `registerWithRouter`).
+Pure logic used only server-side (buffering, per-axis merge, the
+static-file guard) lives in `lib/` (CommonJS) and is unit tested
+directly with `node:test`; `index.js` is the thin layer that wires
+that logic to the SignalK plugin lifecycle (`app.streambundle`,
+`registerWithRouter`). Pure logic used only client-side
+(`public/circle-fit.js`) lives in `public/` instead, as a real ES
+module (`public/package.json` sets `"type": "module"`) so it can be
+`import`ed by `app.js` in the browser *and* unit tested via
+`node:test` + dynamic `import()`, with no bundler either way.
 
 ## License
 
