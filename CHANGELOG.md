@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-19
+
 ### Added
 
 - A `debug` config option. When enabled, both the plugin backend and
