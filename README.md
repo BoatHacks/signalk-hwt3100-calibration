@@ -87,6 +87,25 @@ installer/setup task, not a value other instruments need to read, so
 there's no anonymous-read requirement the way there would be for
 runtime sensor data.
 
+### Two ways to reach the same page
+
+`package.json` also carries the `signalk-webapp` keyword, so this page
+also shows up in the SignalK admin UI's **Webapps** list, served from
+its own top-level mount (`/signalk-hwt3100-calibration/`, from
+`public/`) that SignalK's own webapp discovery serves independently of
+the plugin route above — unlike `/plugins/<id>/*`, that mount is not
+admin-gated. The static assets (`app.js`, `circle-fit.js`, vendored
+three.js) work identically from either URL, since the browser resolves
+their relative `import`/`fetch` specifiers against wherever the page
+actually loaded from — but the API calls (`/config`, `/points`,
+`/firmware-status`, `/calibration/<action>`) only exist under the
+plugin route, so `app.js` always calls them by absolute path
+(`/plugins/signalk-hwt3100-calibration/...`), regardless of which URL
+served the page. Net effect: the page shell is reachable by anyone who
+can reach the SignalK server at all, but it won't show live data or let
+you click the calibration buttons unless you're logged in as admin — a
+non-admin viewer just sees it fail to load.
+
 ## Configuration
 
 Set from the SignalK admin UI's plugin config page:
@@ -117,7 +136,10 @@ Set from the SignalK admin UI's plugin config page:
   (`HALSER-HWT3100-interface`'s `docs/plans/calibration-control-tab.md`
   covers why). Pulling that into this plugin too is a reasonable
   follow-up, not yet done.
-- Not yet tested against a real SignalK server or real hardware.
+- Not yet tested against a real SignalK server or real hardware —
+  including the `signalk-webapp` keyword/dual-mount setup above, which
+  is based on reading SignalK server's webapp-discovery source, not a
+  live-verified test.
 
 ## Development
 

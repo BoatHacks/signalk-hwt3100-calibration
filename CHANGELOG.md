@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+### Fixed
+
+- The page now shows up in the SignalK admin UI's Webapps list
+  (`signalk-webapp` keyword added to `package.json`). It's served from
+  a second, top-level mount independent of the plugin's own admin-gated
+  route; `app.js`'s data calls now use absolute paths so they keep
+  working regardless of which URL served the page. See the README's
+  "Two ways to reach the same page".
+
 ## [0.2.0] - 2026-08-19
 
 First release. `0.1.0` was scaffolded but never published.

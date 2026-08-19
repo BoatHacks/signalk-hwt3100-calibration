@@ -14,6 +14,19 @@
 import * as THREE from 'three';
 import { fitCircle } from './circle-fit.js';
 
+// This page can be reached two ways: SignalK's admin-gated
+// /plugins/signalk-hwt3100-calibration/ (registerWithRouter in
+// index.js, where /config, /points, /firmware-status, and
+// /calibration/<action> actually live) and, since package.json
+// carries the signalk-webapp keyword, a separate top-level
+// /signalk-hwt3100-calibration/ static mount that SignalK's own
+// webapp discovery serves independently. The static assets
+// (this file, circle-fit.js, three.js) resolve fine relative to
+// either -- the browser resolves relative module/fetch specifiers
+// against the page's actual URL. The API calls below can't: they
+// only exist under the plugin route, so they're absolute.
+const API_BASE = '/plugins/signalk-hwt3100-calibration';
+
 const statusEl = document.getElementById('status');
 const RECONNECT_DELAY_MS = [1000, 2000, 5000, 5000, 5000];
 
@@ -232,7 +245,7 @@ function makeAxisMerger() {
 async function connect() {
   let magneticFieldPath = 'sensors.hwt3100.magneticField';
   try {
-    const configRes = await fetch('./config');
+    const configRes = await fetch(`${API_BASE}/config`);
     if (configRes.ok) {
       const config = await configRes.json();
       magneticFieldPath = config.magneticFieldPath || magneticFieldPath;
@@ -247,7 +260,7 @@ async function connect() {
   }
 
   try {
-    const pointsRes = await fetch('./points');
+    const pointsRes = await fetch(`${API_BASE}/points`);
     if (pointsRes.ok) {
       points = await pointsRes.json();
       if (points.length > maxPoints) points = points.slice(points.length - maxPoints);
@@ -343,7 +356,7 @@ function setCalButtonsEnabled(enabled) {
 
 async function checkFirmwareStatus() {
   try {
-    const res = await fetch('./firmware-status');
+    const res = await fetch(`${API_BASE}/firmware-status`);
     const data = await res.json();
     firmwareConfigured = Boolean(data.configured);
     firmwareReachable = Boolean(data.reachable);
@@ -373,7 +386,7 @@ for (const [action, button] of Object.entries(calButtons)) {
     setCalButtonsEnabled(false);
     calibrationResultEl.textContent = `${button.textContent}: sending…`;
     try {
-      const res = await fetch(`./calibration/${action}`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/calibration/${action}`, { method: 'POST' });
       const data = await res.json();
       calibrationResultEl.textContent = data.ok
         ? `${button.textContent}: ${data.body}`
