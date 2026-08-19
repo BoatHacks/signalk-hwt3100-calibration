@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: write
-  actions: read # needed to look up the test workflow run for this commit
+  actions: write # look up the test workflow run for this commit, and trigger publish.yml
 
 jobs:
   release:
@@ -109,3 +109,13 @@ jobs:
           gh release create "v${{ github.event.inputs.version }}" \
             --title "v${{ github.event.inputs.version }}" \
             --notes "$NOTES"
+
+      - name: Trigger publish workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The release just created above won't itself trigger
+          # publish.yml's `release: types: [published]` -- GitHub
+          # doesn't let GITHUB_TOKEN-authored events fire other
+          # workflows (loop prevention). Ask for it explicitly instead.
+          gh workflow run publish.yml --ref "${{ github.event.inputs.ref }}"
