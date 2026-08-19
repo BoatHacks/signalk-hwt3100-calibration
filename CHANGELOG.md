@@ -5,6 +5,8 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-19
+
 ### Fixed
 
 - The page now shows up in the SignalK admin UI's Webapps list
