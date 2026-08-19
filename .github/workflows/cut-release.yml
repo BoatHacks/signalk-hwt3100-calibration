@@ -33,11 +33,13 @@ jobs:
             exit 1
           fi
 
-      - name: Ensure tag does not already exist
+      - name: Ensure no release already exists for this version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v${{ github.event.inputs.version }}"
-          if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
-            echo "::error::Tag ${TAG} already exists"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::A GitHub release already exists for $TAG"
             exit 1
           fi
 
@@ -82,15 +84,28 @@ jobs:
 
       - name: Tag release
         run: |
+          TAG="v${{ github.event.inputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ github.event.inputs.version }}" -m "v${{ github.event.inputs.version }}"
-          git push origin "v${{ github.event.inputs.version }}"
+          # Idempotent: delete any pre-existing tag first (e.g. left
+          # over from a previous run that tagged successfully but
+          # failed a later step -- the "no release exists yet" check
+          # above is what actually guards against re-releasing).
+          git push origin ":refs/tags/$TAG" 2>/dev/null || true
+          git tag -f -a "$TAG" -m "$TAG"
+          git push origin "$TAG"
 
       - name: Create GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          # Routed through an env var rather than interpolated straight
+          # into the script below -- CHANGELOG.md entries routinely
+          # contain backticks (code spans), and inlining them directly
+          # via ${{ }} pastes that text into the literal bash script,
+          # where bash reads backticks as command substitution. An env
+          # var's value isn't re-parsed that way when expanded as "$NOTES".
+          NOTES: ${{ steps.changelog.outputs.notes }}
         run: |
           gh release create "v${{ github.event.inputs.version }}" \
             --title "v${{ github.event.inputs.version }}" \
-            --notes "${{ steps.changelog.outputs.notes }}"
+            --notes "$NOTES"
