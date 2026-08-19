@@ -115,6 +115,7 @@ Set from the SignalK admin UI's plugin config page:
 | `magneticFieldPath` | `sensors.hwt3100.magneticField` | Path prefix; the plugin subscribes to `<prefix>.x`, `.y`, `.z`. |
 | `maxPoints` | `2000` | How many recent readings to keep buffered. A full rotation typically only needs a few hundred. |
 | `firmwareUrl` | *(blank)* | Base URL of the HALSER-HWT3100-interface firmware's own web server (**not** the SignalK server) — e.g. `http://halser-hwt3100.local` or `http://192.168.1.50`. Leave blank to hide the calibration buttons. |
+| `debug` | `false` | Logs SignalK subscription activity, HTTP requests, and firmware calls — to the server console (`console.log`, deliberately independent of SignalK's own `DEBUG`-env mechanism, since this is meant to be toggled from the plugin's own config page) and, since the page reads the same flag from `/config`, to the browser console (`console.debug`) too. |
 
 ## Known limitations / next steps
 

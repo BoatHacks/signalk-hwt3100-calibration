@@ -30,6 +30,20 @@ const API_BASE = '/plugins/signalk-hwt3100-calibration';
 const statusEl = document.getElementById('status');
 const RECONNECT_DELAY_MS = [1000, 2000, 5000, 5000, 5000];
 
+// Mirrors index.js's own debug flag (set via this plugin's config UI,
+// not SignalK's server-wide debug mechanism) -- set once /config comes
+// back in connect() below. Logging is throttled the same way
+// server-side: WS deltas can arrive every ~100ms per axis.
+let debugEnabled = false;
+const DEBUG_SAMPLE_LOG_INTERVAL_MS = 1000;
+let lastDebugSampleLogAt = 0;
+
+function debugLog(...args) {
+  if (debugEnabled) {
+    console.debug('[hwt3100-calibration]', ...args);
+  }
+}
+
 // --- Tabs ---
 
 const circleOverlayControls = document.getElementById('circle-overlay-controls');
@@ -210,7 +224,10 @@ function setMaxPoints(value) {
   if (points.length > maxPoints) points = points.slice(points.length - maxPoints);
 }
 
-maxPointsInput.addEventListener('input', () => setMaxPoints(maxPointsInput.valueAsNumber));
+maxPointsInput.addEventListener('input', () => {
+  setMaxPoints(maxPointsInput.valueAsNumber);
+  debugLog(`max points changed to ${maxPoints}`);
+});
 
 function renderFrame() {
   requestAnimationFrame(renderFrame);
@@ -248,15 +265,18 @@ async function connect() {
     const configRes = await fetch(`${API_BASE}/config`);
     if (configRes.ok) {
       const config = await configRes.json();
+      debugEnabled = Boolean(config.debug);
       magneticFieldPath = config.magneticFieldPath || magneticFieldPath;
       if (config.maxPoints) setMaxPoints(config.maxPoints);
+      debugLog('loaded config', config);
     }
-  } catch {
+  } catch (err) {
     // Fall back to the default path above -- the WebSocket
     // subscription below still needs *a* path, and it matches
     // index.js's schema default, so this is a reasonable guess if
     // /config is briefly unreachable. The trace-length slider keeps
     // its own default in that case too.
+    debugLog('GET /config failed, using defaults:', err.message);
   }
 
   try {
@@ -264,10 +284,12 @@ async function connect() {
     if (pointsRes.ok) {
       points = await pointsRes.json();
       if (points.length > maxPoints) points = points.slice(points.length - maxPoints);
+      debugLog(`seeded ${points.length} point(s) from /points`);
     }
-  } catch {
+  } catch (err) {
     // Non-fatal -- just starts with an empty trace instead of
     // whatever this plugin's server-side buffer already had.
+    debugLog('GET /points failed, starting empty:', err.message);
   }
 
   const axisPaths = {
@@ -281,14 +303,18 @@ async function connect() {
 
   function open() {
     const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${wsProtocol}//${location.host}/signalk/v1/stream?subscribe=none`);
+    const wsUrl = `${wsProtocol}//${location.host}/signalk/v1/stream?subscribe=none`;
+    debugLog(`opening WebSocket to ${wsUrl}`);
+    const ws = new WebSocket(wsUrl);
 
     ws.addEventListener('open', () => {
       reconnectAttempt = 0;
+      const subscribe = Object.keys(axisPaths).map((path) => ({ path, period: 100 }));
+      debugLog('WebSocket open, subscribing to', subscribe);
       ws.send(
         JSON.stringify({
           context: 'vessels.self',
-          subscribe: Object.keys(axisPaths).map((path) => ({ path, period: 100 })),
+          subscribe,
         }),
       );
       statusEl.textContent = `live (${points.length} point(s) buffered)`;
@@ -306,19 +332,35 @@ async function connect() {
           const axis = axisPaths[path];
           if (!axis || typeof value !== 'number' || Number.isNaN(value)) continue;
           const sample = mergeAxis(axis, value, Date.now());
-          if (sample) pushSample(sample);
+          if (sample) {
+            pushSample(sample);
+            const now = Date.now();
+            if (now - lastDebugSampleLogAt >= DEBUG_SAMPLE_LOG_INTERVAL_MS) {
+              lastDebugSampleLogAt = now;
+              debugLog(
+                `merged sample x=${sample.x} y=${sample.y} z=${sample.z} (${points.length} point(s) buffered)`,
+              );
+            }
+          }
         }
       }
       statusEl.textContent = `live (${points.length} point(s) buffered)`;
     });
 
-    ws.addEventListener('close', scheduleReconnect);
-    ws.addEventListener('error', () => ws.close());
+    ws.addEventListener('close', () => {
+      debugLog('WebSocket closed');
+      scheduleReconnect();
+    });
+    ws.addEventListener('error', (event) => {
+      debugLog('WebSocket error', event);
+      ws.close();
+    });
   }
 
   function scheduleReconnect() {
     const delay = RECONNECT_DELAY_MS[Math.min(reconnectAttempt, RECONNECT_DELAY_MS.length - 1)];
     reconnectAttempt += 1;
+    debugLog(`reconnecting in ${delay}ms (attempt ${reconnectAttempt})`);
     statusEl.textContent = `disconnected, retrying in ${delay / 1000}s…`;
     setTimeout(open, delay);
   }
@@ -360,6 +402,7 @@ async function checkFirmwareStatus() {
     const data = await res.json();
     firmwareConfigured = Boolean(data.configured);
     firmwareReachable = Boolean(data.reachable);
+    debugLog('firmware status ->', data);
 
     if (!firmwareConfigured) {
       firmwareStatusEl.textContent =
@@ -374,6 +417,7 @@ async function checkFirmwareStatus() {
     firmwareConfigured = false;
     firmwareReachable = false;
     firmwareStatusEl.textContent = `Could not check HALSER firmware status: ${err.message}`;
+    debugLog('GET /firmware-status failed:', err.message);
   } finally {
     setCalButtonsEnabled(firmwareConfigured && firmwareReachable);
     setTimeout(checkFirmwareStatus, FIRMWARE_STATUS_POLL_MS);
@@ -385,13 +429,16 @@ for (const [action, button] of Object.entries(calButtons)) {
   button.addEventListener('click', async () => {
     setCalButtonsEnabled(false);
     calibrationResultEl.textContent = `${button.textContent}: sending…`;
+    debugLog(`POST /calibration/${action}`);
     try {
       const res = await fetch(`${API_BASE}/calibration/${action}`, { method: 'POST' });
       const data = await res.json();
+      debugLog(`  -> ${action} response`, data);
       calibrationResultEl.textContent = data.ok
         ? `${button.textContent}: ${data.body}`
         : `${button.textContent} failed: ${data.error || data.body || res.statusText}`;
     } catch (err) {
+      debugLog(`  -> ${action} request failed:`, err.message);
       calibrationResultEl.textContent = `${button.textContent} failed: ${err.message}`;
     } finally {
       // Re-enable based on the last-known firmware reachability

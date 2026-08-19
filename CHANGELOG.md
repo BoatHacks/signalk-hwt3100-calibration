@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+### Added
+
+- A `debug` config option. When enabled, both the plugin backend and
+  the web page log SignalK subscription activity, HTTP requests, and
+  firmware calls to their respective consoles.
+
 ## [0.2.1] - 2026-08-19
 
 ### Fixed
