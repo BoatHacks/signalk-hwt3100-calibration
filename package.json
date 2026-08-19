@@ -1,6 +1,6 @@
 {
   "name": "signalk-hwt3100-calibration",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "2D/3D magnetic field visualization for verifying compass calibration quality on a SignalK server",
   "main": "index.js",
   "files": [

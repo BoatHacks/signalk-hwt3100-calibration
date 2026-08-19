@@ -28,6 +28,16 @@ body {
   background: var(--bg);
 }
 
+.demo-banner {
+  background: #f59e0b;
+  color: #1a1a1a;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 header h1 {
   margin: 0 0 0.25rem;
   font-size: 1.25rem;

@@ -28,6 +28,7 @@ import { fitCircle } from './circle-fit.js';
 const API_BASE = '/plugins/signalk-hwt3100-calibration';
 
 const statusEl = document.getElementById('status');
+const demoBannerEl = document.getElementById('demo-banner');
 const RECONNECT_DELAY_MS = [1000, 2000, 5000, 5000, 5000];
 
 // Mirrors index.js's own debug flag (set via this plugin's config UI,
@@ -268,6 +269,7 @@ async function connect() {
       debugEnabled = Boolean(config.debug);
       magneticFieldPath = config.magneticFieldPath || magneticFieldPath;
       if (config.maxPoints) setMaxPoints(config.maxPoints);
+      demoBannerEl.hidden = !config.demoMode;
       debugLog('loaded config', config);
     }
   } catch (err) {

@@ -9,10 +9,12 @@ const {
   buildButtonListUrl,
   buildCalibrationButtonUrl,
 } = require('./lib/firmware-client');
+const { generateDemoSample } = require('./lib/demo-data');
 
 const DEFAULT_MAGNETIC_FIELD_PATH = 'sensors.hwt3100.magneticField';
 const DEFAULT_MAX_POINTS = 2000;
 const FIRMWARE_REQUEST_TIMEOUT_MS = 3000;
+const DEMO_SAMPLE_INTERVAL_MS = 200;
 // How often the merged-sample debug log line is allowed to print --
 // samples can arrive every ~100ms per axis, so logging every one of
 // them would flood the server console even with debug intentionally
@@ -34,8 +36,10 @@ module.exports = function (app) {
     maxPoints: DEFAULT_MAX_POINTS,
     firmwareConfigured: false,
     debug: false,
+    demoMode: false,
   };
   let firmwareUrl = '';
+  let demoTimer = null;
   // Deliberately separate from SignalK's own app.debug/DEBUG-env
   // mechanism (which most viewers of this plugin won't know how to
   // enable) -- this is a plain console logger gated by this plugin's
@@ -81,6 +85,13 @@ module.exports = function (app) {
           'Logs SignalK subscription activity, HTTP requests, and firmware calls to the server console, and mirrors the same information to the browser console on the visualization page.',
         default: false,
       },
+      demoMode: {
+        type: 'boolean',
+        title: 'Demo mode (synthetic data)',
+        description:
+          'Publishes a synthetic rotating magnetic-field trace (with a deliberate hard-iron offset and soft-iron distortion) on the configured path prefix instead of expecting a real sensor -- lets you try out the visualization without a HWT3100 attached. The visualization page shows a banner while this is on.',
+        default: false,
+      },
     },
   };
 
@@ -89,12 +100,14 @@ module.exports = function (app) {
     const maxPoints = options.maxPoints || DEFAULT_MAX_POINTS;
     firmwareUrl = normalizeFirmwareUrl(options.firmwareUrl);
     debugEnabled = Boolean(options.debug);
+    const demoMode = Boolean(options.demoMode);
     lastDebugSampleLogAt = 0;
     currentConfig = {
       magneticFieldPath,
       maxPoints,
       firmwareConfigured: firmwareUrl !== '',
       debug: debugEnabled,
+      demoMode,
     };
 
     debugLog('starting with config', currentConfig);
@@ -129,6 +142,25 @@ module.exports = function (app) {
     app.debug(
       `HWT3100 Calibration Visualizer: subscribed to ${magneticFieldPath}.{x,y,z}, buffering up to ${maxPoints} points`,
     );
+
+    if (demoMode) {
+      debugLog(`demo mode on: publishing synthetic ${magneticFieldPath}.{x,y,z} every ${DEMO_SAMPLE_INTERVAL_MS}ms`);
+      const demoStartedAt = Date.now();
+      demoTimer = setInterval(() => {
+        const sample = generateDemoSample(Date.now() - demoStartedAt);
+        app.handleMessage(plugin.id, {
+          updates: [
+            {
+              values: [
+                { path: `${magneticFieldPath}.x`, value: sample.x },
+                { path: `${magneticFieldPath}.y`, value: sample.y },
+                { path: `${magneticFieldPath}.z`, value: sample.z },
+              ],
+            },
+          ],
+        });
+      }, DEMO_SAMPLE_INTERVAL_MS);
+    }
   };
 
   plugin.stop = function () {
@@ -138,6 +170,10 @@ module.exports = function (app) {
     traceBuffer = null;
     firmwareUrl = '';
     debugEnabled = false;
+    if (demoTimer) {
+      clearInterval(demoTimer);
+      demoTimer = null;
+    }
   };
 
   // Serves the visualization webapp and its data feed under this

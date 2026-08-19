@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-19
+
+### Added
+
+- A `demoMode` config option. When enabled, the plugin publishes a
+  synthetic rotating magnetic-field trace (with a deliberate hard-iron
+  offset and soft-iron distortion, `lib/demo-data.js`) on the
+  configured `magneticFieldPath` via `app.handleMessage`, so the
+  visualization works end-to-end with no HWT3100 attached. The page
+  shows an amber banner whenever it's on.
+
 ## [0.2.2] - 2026-08-19
 
 ### Added

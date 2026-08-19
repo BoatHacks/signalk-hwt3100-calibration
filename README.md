@@ -81,6 +81,18 @@ compass calibration by eye.
   disabled, with an explanatory message, whenever `firmwareUrl` isn't
   configured or the firmware isn't currently reachable.
 
+- **Demo mode** (`demoMode` config option, off by default): instead of
+  expecting a real sensor, the plugin itself publishes a synthetic
+  rotating magnetic-field trace on the configured `magneticFieldPath`
+  — a deliberately offset, elliptical trace (hard-iron + soft-iron
+  distortion baked in, `lib/demo-data.js`) so it also demonstrates
+  what a mis-calibrated sensor looks like. It publishes real SignalK
+  deltas via `app.handleMessage`, so it flows through the exact same
+  path as a real sensor would (server-side buffer, live WebSocket
+  subscription, both circle overlays) with no separate code path in
+  the page. The page shows an amber banner whenever it's on, so it's
+  obvious the data isn't real. Turn it off once a HWT3100 is attached.
+
 Note: `/plugins/<id>/*` routes require an admin-authenticated session
 on the SignalK server. That's intentional here — calibration is an
 installer/setup task, not a value other instruments need to read, so
@@ -116,6 +128,7 @@ Set from the SignalK admin UI's plugin config page:
 | `maxPoints` | `2000` | How many recent readings to keep buffered. A full rotation typically only needs a few hundred. |
 | `firmwareUrl` | *(blank)* | Base URL of the HALSER-HWT3100-interface firmware's own web server (**not** the SignalK server) — e.g. `http://halser-hwt3100.local` or `http://192.168.1.50`. Leave blank to hide the calibration buttons. |
 | `debug` | `false` | Logs SignalK subscription activity, HTTP requests, and firmware calls — to the server console (`console.log`, deliberately independent of SignalK's own `DEBUG`-env mechanism, since this is meant to be toggled from the plugin's own config page) and, since the page reads the same flag from `/config`, to the browser console (`console.debug`) too. |
+| `demoMode` | `false` | Publishes a synthetic rotating magnetic-field trace on `magneticFieldPath` instead of expecting a real sensor, so you can try out the visualization without a HWT3100 attached. The page shows a banner while this is on. |
 
 ## Known limitations / next steps
 
