@@ -11,6 +11,14 @@ All notable changes to this project are documented in this file, in the
   the web page log SignalK subscription activity, HTTP requests, and
   firmware calls to their respective consoles.
 
+### Fixed
+
+- The vendored three.js import map used a bare specifier
+  (`vendor/three/three.module.min.js`) as its value, which browsers
+  reject (import map values must be a URL or start with `./`, `../`,
+  or `/`) — the page failed to load at all with "Failed to resolve
+  module specifier 'three'". Now `./vendor/three/three.module.min.js`.
+
 ## [0.2.1] - 2026-08-19
 
 ### Fixed
