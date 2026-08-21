@@ -5,6 +5,24 @@ All notable changes to this project are documented in this file, in the
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-21
+
+### Fixed
+
+- **The 3D view never actually showed the point cloud.** Real
+  magnetic-field readings are raw sensor units, typically in the
+  thousands — plotted as literal Three.js coordinates against a camera
+  only a few hundred units away, the whole point cloud landed far
+  outside the view frustum and was invisible. Now auto-scaled to a
+  fixed on-screen radius each frame, mirroring the 2D canvas's existing
+  auto-scaling.
+- The axes helper was a direct child of the scene rather than the
+  rotating group, so it never rotated, and the camera's axis-aligned
+  starting position (`(0,0,400)`, looking straight down Z) made the
+  blue Z axis point directly at the camera — invisible, leaving only a
+  static red/green cross. The camera now starts off-axis and the axes
+  helper rotates with the point cloud.
+
 ## [0.3.0] - 2026-08-19
 
 ### Added

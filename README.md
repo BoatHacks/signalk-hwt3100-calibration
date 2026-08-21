@@ -51,7 +51,10 @@ compass calibration by eye.
     locally under `public/vendor/three/` rather than loaded from a
     CDN — this needs to keep working with no internet access, e.g.
     offshore with the SignalK server as the only thing on the LAN),
-    auto-rotating.
+    auto-rotating, auto-scaled each frame to a fixed on-screen radius
+    (real magnetometer readings are raw sensor units, typically in the
+    thousands — plotted as literal 3D coordinates they'd land far
+    outside the camera's view).
   - A slider on the page lets you change how many points are kept in
     view live (independent of the plugin's own `maxPoints` config,
     which only bounds the server-side seed buffer) — shrink it while

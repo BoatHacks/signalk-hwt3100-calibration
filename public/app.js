@@ -157,17 +157,33 @@ function draw2d(points) {
 const container3d = document.getElementById('canvas-3d-container');
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
-camera.position.set(0, 0, 400);
+// An axis-aligned camera position makes one axis point straight at/away
+// from the camera, rendering as an invisible dot instead of a line --
+// an off-axis start means all three are visible immediately, before
+// auto-rotation has had a chance to turn anything into view.
+camera.position.set(300, 220, 300);
+camera.lookAt(0, 0, 0);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 container3d.appendChild(renderer.domElement);
-
-const axesHelper = new THREE.AxesHelper(200);
-scene.add(axesHelper);
 
 const pointsGroup = new THREE.Group();
 scene.add(pointsGroup);
 
+// Part of pointsGroup (not the scene directly) so it rotates together
+// with the point cloud -- previously a scene-level child, so it never
+// rotated and stayed as a static, camera-axis-aligned cross.
+const axesHelper = new THREE.AxesHelper(150);
+pointsGroup.add(axesHelper);
+
 let pointsMesh = null;
+
+// Real magnetic-field readings are raw sensor units, typically in the
+// thousands (e.g. the HWT3100 reports values like x=10058) -- rendered
+// as literal Three.js coordinates against a camera only a few hundred
+// units away, the entire point cloud used to land far outside the view
+// frustum and never appeared at all. Rescale to a fixed target radius
+// each draw, mirroring draw2d()'s auto-scaling of the 2D canvas.
+const kTargetRadius = 120;
 
 function draw3d(points) {
   if (pointsMesh) {
@@ -177,11 +193,17 @@ function draw3d(points) {
   }
   if (points.length === 0) return;
 
+  const extent = Math.max(
+    1,
+    ...points.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y), Math.abs(p.z))),
+  );
+  const scale = kTargetRadius / extent;
+
   const positions = new Float32Array(points.length * 3);
   points.forEach((p, i) => {
-    positions[i * 3] = p.x;
-    positions[i * 3 + 1] = p.y;
-    positions[i * 3 + 2] = p.z;
+    positions[i * 3] = p.x * scale;
+    positions[i * 3 + 1] = p.y * scale;
+    positions[i * 3 + 2] = p.z * scale;
   });
 
   const geometry = new THREE.BufferGeometry();
